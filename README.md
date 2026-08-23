@@ -144,7 +144,7 @@ python -c "import edge_tts; print(edge_tts.__version__)"
 ffmpeg -version
 ```
 
-同时确认 `$CODEX_HOME\state_5.sqlite` 存在。标题生成失败不会打断 Codex，也不会阻止固定前缀播放。
+同时确认 `$CODEX_HOME\state_5.sqlite` 存在。数据库中的任务名为空时，脚本会从同目录的 `session_index.jsonl` 回退读取任务名；两个来源都没有有效标题时会安全跳过标题语音。标题生成失败不会打断 Codex，也不会阻止固定前缀播放。
 
 ### 已有 notify 怎么办
 
@@ -155,7 +155,7 @@ Codex 只有一个用户级 `notify` 命令入口。安装器会先生成带时�
 - 固定“Codex/Claude 任务完成”前缀是仓库内 MP3，可完全离线播放。
 - 任务名称首次播放时会把**任务标题文本**发送到 Microsoft Edge 在线 TTS 服务以生成语音。
 - 生成后的标题 MP3 缓存在独立运行目录的 `voice-cache` 中，后续相同标题直接本地播放。
-- 脚本只读本机 Codex 的 `state_5.sqlite` 与对应 transcript 尾部，用于获取标题、识别父子任务和判断 follow-up；不会上传完整对话内容。
+- 脚本只读本机 Codex 的 `state_5.sqlite`、`session_index.jsonl` 与对应 transcript 尾部，用于获取标题、识别父子任务和判断 follow-up；不会上传完整对话内容。
 
 ## 官方文档
 

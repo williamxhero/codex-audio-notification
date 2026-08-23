@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextlib import closing
 from dataclasses import dataclass
 import hashlib
 import json
@@ -59,12 +60,40 @@ def _has_spawn_edge(connection: sqlite3.Connection, thread_id: str) -> bool:
         return False
 
 
+def resolve_session_index_title(database_path: Path, thread_id: str) -> str | None:
+    index_path = database_path.parent / "session_index.jsonl"
+    if not index_path.is_file():
+        return None
+
+    title = None
+    try:
+        with index_path.open("rb") as index_file:
+            for raw_line in index_file:
+                try:
+                    record = json.loads(raw_line.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+
+                if not isinstance(record, dict) or record.get("id") != thread_id:
+                    continue
+
+                candidate = record.get("thread_name")
+                if isinstance(candidate, str) and candidate.strip():
+                    title = candidate.strip()
+    except OSError:
+        return None
+
+    return title
+
+
 def resolve_thread(database_path: Path, thread_id: str) -> ThreadInfo | None:
     if not database_path.is_file():
         return None
 
     database_uri = f"{database_path.resolve().as_uri()}?mode=ro"
-    with sqlite3.connect(database_uri, uri=True, timeout=1.0) as connection:
+    with closing(
+        sqlite3.connect(database_uri, uri=True, timeout=1.0)
+    ) as connection:
         row = connection.execute(
             """
             SELECT name, thread_source, rollout_path, source
@@ -79,6 +108,8 @@ def resolve_thread(database_path: Path, thread_id: str) -> ThreadInfo | None:
         return None
 
     title = str(row[0]).strip() if row[0] is not None else None
+    if not title:
+        title = resolve_session_index_title(database_path, thread_id)
     thread_source = str(row[1]).strip() if row[1] is not None else None
     rollout_path_text = str(row[2]).strip() if row[2] is not None else None
     source_text = str(row[3]).strip() if row[3] is not None else None
