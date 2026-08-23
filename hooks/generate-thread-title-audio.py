@@ -171,7 +171,7 @@ def notification_decision(
         return "silence-spawned"
 
     if info is None:
-        return "play"
+        return "silence-unknown"
 
     pending_dir.mkdir(parents=True, exist_ok=True)
     marker_name = hashlib.sha256(thread_id.encode("utf-8")).hexdigest()[:24]

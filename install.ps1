@@ -203,6 +203,7 @@ $runtimeScript = Join-Path $runtimeDirectory 'turn-complete-voice.ps1'
 $requiredFiles = @(
     'turn-complete-voice.ps1',
     'generate-thread-title-audio.py',
+    'notification_audit.py',
     'task-completion-voice.json',
     'codex-task-complete-hsiaoyu.mp3',
     'claude-task-complete-hsiaoyu.mp3'
@@ -270,9 +271,11 @@ if ([string]::IsNullOrWhiteSpace($ffmpegPath) -or [string]::IsNullOrWhiteSpace($
 }
 
 $pythonPrefix = @($python.PrefixArguments)
-& $python.Executable @pythonPrefix (Join-Path $sourceHooks 'generate-thread-title-audio.py') --help 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    throw 'The Python helper source failed its self-check. The Codex config has not been changed.'
+foreach ($helperFile in @('generate-thread-title-audio.py', 'notification_audit.py')) {
+    & $python.Executable @pythonPrefix (Join-Path $sourceHooks $helperFile) --help 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "The Python helper source failed its self-check: $helperFile. The Codex config has not been changed."
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $CodexHome | Out-Null
@@ -345,9 +348,11 @@ if ($installedParseErrors.Count -gt 0) {
     throw "The installed PowerShell script failed validation: $($installedParseErrors[0].Message)"
 }
 
-& $python.Executable @pythonPrefix (Join-Path $runtimeDirectory 'generate-thread-title-audio.py') --help 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    throw 'The installed Python helper failed its self-check.'
+foreach ($helperFile in @('generate-thread-title-audio.py', 'notification_audit.py')) {
+    & $python.Executable @pythonPrefix (Join-Path $runtimeDirectory $helperFile) --help 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "The installed Python helper failed its self-check: $helperFile."
+    }
 }
 
 $installedConfig = [System.IO.File]::ReadAllText($configPath)

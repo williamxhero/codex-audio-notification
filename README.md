@@ -11,6 +11,7 @@
 - Codex 每轮结束后等待 15 秒；期间若出现 follow-up，新一轮会取消旧播报。
 - 最新状态仍是执行中时不播报，避免把 follow-up 中间轮次当作任务完成。
 - 子智能体以及任何由另一个 thread 发起的任务都不播报，只播报用户直接创建的顶层任务。
+- Codex 尚未登记或无法识别的 thread 一律静默，不把内部后台任务误判为用户任务。
 - 每天 23:00（含）至次日 08:00（不含）完全静默。
 - 手动直接运行通知脚本且不提供 payload 时，只试听固定前缀。
 - 保留并转发 Codex Desktop 原有的 `turn-ended` 桌面通知。
@@ -105,6 +106,28 @@ $CODEX_HOME\hooks\codex-audio-notification\task-completion-voice.json
 
 手动运行没有 Codex payload，因此只播放当前 profile 的固定前缀。静默时间内仍会保持静默。
 
+## 审计日志
+
+每次 wrapper 调用都会尽力在下面的位置写入一行 JSON：
+
+```text
+$CODEX_HOME\hooks\codex-audio-notification\logs\notification-audit.jsonl
+```
+
+字段固定为：`timestamp`（UTC）、`eventType`、`threadId`、`turnId`、`cwd`、`source`、`profile`、`decision`、`reason`、`prefixPlayed`、`titlePlayed`、`errorStage`、`errorType`。其中两个 `Played` 字段记录最终实际是否成功调用播放器，而不是播放前的计划。
+
+`decision` 可用于区分 `silence-unknown`、`silence-spawned`、`silence-followup`、`silence-superseded`、`silence-quiet-hours`、`silence-error` 和 `play`。无 payload 手动试听会记录为 `source=manual`，成功时是 `play/manual-preview`。
+
+日志采用轻量文件锁并逐行追加。当前文件达到 1 MiB 前会轮转，保留 `.1`、`.2`、`.3` 三个备份；正常情况下日志总量上限约为 4 MiB。日志写入或轮转失败不会影响 Codex，也不会改变通知决策。
+
+查看最近 20 条：
+
+```powershell
+$log = "$HOME\.codex\hooks\codex-audio-notification\logs\notification-audit.jsonl"
+Get-Content -LiteralPath $log -Tail 20 | ForEach-Object { $_ | ConvertFrom-Json } |
+    Format-Table timestamp, decision, reason, threadId, prefixPlayed, titlePlayed
+```
+
 ## 卸载
 
 在仓库根目录运行：
@@ -156,6 +179,7 @@ Codex 只有一个用户级 `notify` 命令入口。安装器会先生成带时�
 - 任务名称首次播放时会把**任务标题文本**发送到 Microsoft Edge 在线 TTS 服务以生成语音。
 - 生成后的标题 MP3 缓存在独立运行目录的 `voice-cache` 中，后续相同标题直接本地播放。
 - 脚本只读本机 Codex 的 `state_5.sqlite`、`session_index.jsonl` 与对应 transcript 尾部，用于获取标题、识别父子任务和判断 follow-up；不会上传完整对话内容。
+- 审计日志不记录 prompt、`input-messages`、`last-assistant-message`、回复正文、任务标题、完整 payload、秘密或凭据；`cwd` 和 thread/turn ID 会保存在本机日志中。
 
 ## 官方文档
 

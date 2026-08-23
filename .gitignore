@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 voice-cache/
 pending-notifications/
+logs/
 *.tmp
 *.bak
 .install-state.json

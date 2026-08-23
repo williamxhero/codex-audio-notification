@@ -142,6 +142,16 @@ class TitleResolutionTests(unittest.TestCase):
         self.assertIsNotNone(info)
         self.assertEqual("Last valid title", info.title)
 
+    def test_unknown_thread_is_silenced(self) -> None:
+        decision = HELPER.notification_decision(
+            None,
+            "01a02df9-f1e0-7e81-8039-7eb93047022b",
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("silence-unknown", decision)
+
 
 if __name__ == "__main__":
     unittest.main()
