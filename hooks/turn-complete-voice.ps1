@@ -314,6 +314,10 @@ try {
 
         $notificationDecision = [string] $notificationDecision
         switch ($notificationDecision) {
+            'silence-muted' {
+                Complete-NotificationAudit -Decision $notificationDecision -Reason 'title-muted'
+                exit 0
+            }
             'silence-unknown' {
                 Complete-NotificationAudit -Decision $notificationDecision -Reason 'thread-not-registered'
                 exit 0

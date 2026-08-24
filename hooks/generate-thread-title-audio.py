@@ -21,6 +21,7 @@ PITCH = "+22Hz"
 VOLUME = "+0%"
 SETTINGS_VERSION = "hsiaoyu-rate-6-pitch-22-volume-4db-v1"
 TRANSCRIPT_TAIL_BYTES = 2 * 1024 * 1024
+MUTE_TITLE_MARKER = "\U0001F507"
 
 
 @dataclass(frozen=True)
@@ -167,6 +168,13 @@ def notification_decision(
     pending_dir: Path,
     settle_seconds: float,
 ) -> str:
+    if (
+        info is not None
+        and info.title is not None
+        and MUTE_TITLE_MARKER in info.title
+    ):
+        return "silence-muted"
+
     if info is not None and info.has_parent:
         return "silence-spawned"
 

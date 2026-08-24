@@ -152,6 +152,106 @@ class TitleResolutionTests(unittest.TestCase):
 
         self.assertEqual("silence-unknown", decision)
 
+    def test_database_title_with_mute_marker_is_silenced(self) -> None:
+        thread_id = "thread-muted-database-title"
+        self.add_thread(thread_id, "Review release 🔇️ before shipping")
+
+        info = HELPER.resolve_thread(self.database_path, thread_id)
+        decision = HELPER.notification_decision(
+            info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("silence-muted", decision)
+
+    def test_index_fallback_title_with_mute_marker_is_silenced(self) -> None:
+        thread_id = "thread-muted-index-title"
+        self.add_thread(thread_id, None)
+        self.write_index_records(
+            {"id": thread_id, "thread_name": "Earlier title"},
+            {"id": thread_id, "thread_name": "🔇 Muted fallback title"},
+        )
+
+        info = HELPER.resolve_thread(self.database_path, thread_id)
+        decision = HELPER.notification_decision(
+            info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("🔇 Muted fallback title", info.title)
+        self.assertEqual("silence-muted", decision)
+
+    def test_normal_title_is_not_silenced_as_muted(self) -> None:
+        thread_id = "thread-normal-title"
+        self.add_thread(thread_id, "Normal notification title")
+
+        info = HELPER.resolve_thread(self.database_path, thread_id)
+        decision = HELPER.notification_decision(
+            info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("play", decision)
+
+    def test_database_rename_without_marker_overrides_muted_index_history(self) -> None:
+        thread_id = "thread-renamed-unmuted"
+        self.add_thread(thread_id, "🔇 Muted database title")
+        self.write_index_records(
+            {"id": thread_id, "thread_name": "🔇 Old muted index title"},
+        )
+
+        muted_info = HELPER.resolve_thread(self.database_path, thread_id)
+        muted_decision = HELPER.notification_decision(
+            muted_info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+        self.assertEqual("silence-muted", muted_decision)
+
+        with closing(sqlite3.connect(self.database_path)) as connection:
+            connection.execute(
+                "UPDATE threads SET name = ? WHERE id = ?",
+                ("Renamed audible title", thread_id),
+            )
+            connection.commit()
+
+        renamed_info = HELPER.resolve_thread(self.database_path, thread_id)
+        renamed_decision = HELPER.notification_decision(
+            renamed_info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("Renamed audible title", renamed_info.title)
+        self.assertEqual("play", renamed_decision)
+
+    def test_latest_index_rename_without_marker_restores_play(self) -> None:
+        thread_id = "thread-index-renamed-unmuted"
+        self.add_thread(thread_id, None)
+        self.write_index_records(
+            {"id": thread_id, "thread_name": "🔇 Old muted index title"},
+            {"id": thread_id, "thread_name": "Latest audible index title"},
+        )
+
+        info = HELPER.resolve_thread(self.database_path, thread_id)
+        decision = HELPER.notification_decision(
+            info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("Latest audible index title", info.title)
+        self.assertEqual("play", decision)
+
 
 if __name__ == "__main__":
     unittest.main()

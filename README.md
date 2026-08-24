@@ -12,6 +12,7 @@
 - 最新状态仍是执行中时不播报，避免把 follow-up 中间轮次当作任务完成。
 - 子智能体以及任何由另一个 thread 发起的任务都不播报，只播报用户直接创建的顶层任务。
 - Codex 尚未登记或无法识别的 thread 一律静默，不把内部后台任务误判为用户任务。
+- 当前有效任务标题任意位置包含 `🔇`（U+1F507）时完全静默，固定前缀和标题语音都不播放；`🔇️` 这类带 variation selector 的写法同样生效。
 - 每天 23:00（含）至次日 08:00（不含）完全静默。
 - 手动直接运行通知脚本且不提供 payload 时，只试听固定前缀。
 - 保留并转发 Codex Desktop 原有的 `turn-ended` 桌面通知。
@@ -98,6 +99,16 @@ $CODEX_HOME\hooks\codex-audio-notification\task-completion-voice.json
 
 跨午夜和同一天区间均支持；`start` 与 `end` 相同表示不启用静默时段。
 
+### 按标题临时静音
+
+直接在 thread 标题中加入 `🔇`，无需修改配置。例如：
+
+```text
+MarketHub 🔇 临时维护
+```
+
+标记可以放在标题任意位置。当前标题优先读取 `threads.name`；只有该值为空时，才使用 `session_index.jsonl` 中最后一个有效的 `thread_name`。要恢复播报，只需把当前标题中的 `🔇` 删除并重命名；旧的 index 历史标题不会让已重命名的 thread 继续静音。
+
 ## 手动试听
 
 ```powershell
@@ -116,7 +127,7 @@ $CODEX_HOME\hooks\codex-audio-notification\logs\notification-audit.jsonl
 
 字段固定为：`timestamp`（UTC）、`eventType`、`threadId`、`turnId`、`cwd`、`source`、`profile`、`decision`、`reason`、`prefixPlayed`、`titlePlayed`、`errorStage`、`errorType`。其中两个 `Played` 字段记录最终实际是否成功调用播放器，而不是播放前的计划。
 
-`decision` 可用于区分 `silence-unknown`、`silence-spawned`、`silence-followup`、`silence-superseded`、`silence-quiet-hours`、`silence-error` 和 `play`。无 payload 手动试听会记录为 `source=manual`，成功时是 `play/manual-preview`。
+`decision` 可用于区分 `silence-muted`、`silence-unknown`、`silence-spawned`、`silence-followup`、`silence-superseded`、`silence-quiet-hours`、`silence-error` 和 `play`。标题标记静音记录为 `silence-muted/title-muted`，且两个 `Played` 字段均为 `false`。无 payload 手动试听会记录为 `source=manual`，成功时是 `play/manual-preview`。
 
 日志采用轻量文件锁并逐行追加。当前文件达到 1 MiB 前会轮转，保留 `.1`、`.2`、`.3` 三个备份；正常情况下日志总量上限约为 4 MiB。日志写入或轮转失败不会影响 Codex，也不会改变通知决策。
 
