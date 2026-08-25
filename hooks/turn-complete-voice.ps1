@@ -314,6 +314,10 @@ try {
 
         $notificationDecision = [string] $notificationDecision
         switch ($notificationDecision) {
+            'silence-ar-prefix' {
+                Complete-NotificationAudit -Decision 'silence-muted' -Reason 'title-ar-prefix'
+                exit 0
+            }
             'silence-muted' {
                 Complete-NotificationAudit -Decision $notificationDecision -Reason 'title-muted'
                 exit 0

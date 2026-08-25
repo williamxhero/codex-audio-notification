@@ -109,6 +109,8 @@ MarketHub 🔇 临时维护
 
 标记可以放在标题任意位置。当前标题优先读取 `threads.name`；只有该值为空时，才使用 `session_index.jsonl` 中最后一个有效的 `thread_name`。要恢复播报，只需把当前标题中的 `🔇` 删除并重命名；旧的 index 历史标题不会让已重命名的 thread 继续静音。
 
+标题也可以用 `[AR]` 开头来静音；前缀前的空白会被忽略。只有开头的完整 `[AR]` 标记生效，标题中间的 `[AR]` 或 `[ARX]` 不会静音。
+
 ## 手动试听
 
 ```powershell
@@ -127,7 +129,7 @@ $CODEX_HOME\hooks\codex-audio-notification\logs\notification-audit.jsonl
 
 字段固定为：`timestamp`（UTC）、`eventType`、`threadId`、`turnId`、`cwd`、`source`、`profile`、`decision`、`reason`、`prefixPlayed`、`titlePlayed`、`errorStage`、`errorType`。其中两个 `Played` 字段记录最终实际是否成功调用播放器，而不是播放前的计划。
 
-`decision` 可用于区分 `silence-muted`、`silence-unknown`、`silence-spawned`、`silence-followup`、`silence-superseded`、`silence-quiet-hours`、`silence-error` 和 `play`。标题标记静音记录为 `silence-muted/title-muted`，且两个 `Played` 字段均为 `false`。无 payload 手动试听会记录为 `source=manual`，成功时是 `play/manual-preview`。
+`decision` 可用于区分 `silence-muted`、`silence-unknown`、`silence-spawned`、`silence-followup`、`silence-superseded`、`silence-quiet-hours`、`silence-error` 和 `play`。`🔇` 标题标记静音记录为 `silence-muted/title-muted`，`[AR]` 标题前缀静音记录为 `silence-muted/title-ar-prefix`；两种情况下两个 `Played` 字段均为 `false`。无 payload 手动试听会记录为 `source=manual`，成功时是 `play/manual-preview`。
 
 日志采用轻量文件锁并逐行追加。当前文件达到 1 MiB 前会轮转，保留 `.1`、`.2`、`.3` 三个备份；正常情况下日志总量上限约为 4 MiB。日志写入或轮转失败不会影响 Codex，也不会改变通知决策。
 

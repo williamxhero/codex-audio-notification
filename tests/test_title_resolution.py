@@ -199,6 +199,51 @@ class TitleResolutionTests(unittest.TestCase):
 
         self.assertEqual("play", decision)
 
+    def test_ar_prefix_titles_are_silenced(self) -> None:
+        for thread_id, title in (
+            ("thread-ar-exact", "[AR]"),
+            ("thread-ar-leading-whitespace", "  \t[AR] Review quietly"),
+        ):
+            with self.subTest(title=title):
+                self.add_thread(thread_id, title)
+                info = HELPER.resolve_thread(self.database_path, thread_id)
+                decision = HELPER.notification_decision(
+                    info,
+                    thread_id,
+                    self.codex_home / "pending-notifications",
+                    settle_seconds=0,
+                )
+
+                self.assertEqual("silence-ar-prefix", decision)
+
+    def test_ar_marker_later_in_title_is_not_silenced(self) -> None:
+        thread_id = "thread-ar-marker-later"
+        self.add_thread(thread_id, "Review [AR] quietly")
+
+        info = HELPER.resolve_thread(self.database_path, thread_id)
+        decision = HELPER.notification_decision(
+            info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("play", decision)
+
+    def test_arx_prefix_is_not_silenced(self) -> None:
+        thread_id = "thread-arx-prefix"
+        self.add_thread(thread_id, "[ARX] Review aloud")
+
+        info = HELPER.resolve_thread(self.database_path, thread_id)
+        decision = HELPER.notification_decision(
+            info,
+            thread_id,
+            self.codex_home / "pending-notifications",
+            settle_seconds=0,
+        )
+
+        self.assertEqual("play", decision)
+
     def test_database_rename_without_marker_overrides_muted_index_history(self) -> None:
         thread_id = "thread-renamed-unmuted"
         self.add_thread(thread_id, "🔇 Muted database title")

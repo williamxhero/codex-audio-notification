@@ -16,6 +16,7 @@ $mainThreadId = '01a02df9-f1e0-7e81-8039-7eb930470220'
 $mutedThreadId = '01a02df9-f1e0-7e81-8039-7eb930470221'
 $spawnedThreadId = '01a02df9-f1e0-7e81-8039-7eb930470222'
 $unknownThreadId = '01a02df9-f1e0-7e81-8039-7eb930470223'
+$arMutedThreadId = '01a02df9-f1e0-7e81-8039-7eb930470224'
 $mainTitle = 'Audible integration title'
 $mutedTitle = 'Muted 🔇 integration title'
 
@@ -66,12 +67,13 @@ connection.executemany(
         (sys.argv[2], sys.argv[3], "user"),
         (sys.argv[4], "Muted \U0001F507 integration title", "user"),
         (sys.argv[5], "Spawned integration title", "subagent"),
+        (sys.argv[6], "   [AR] Private integration title", "user"),
     ],
 )
 connection.commit()
 connection.close()
 '@
-    $schema | & python - $databasePath $mainThreadId $mainTitle $mutedThreadId $spawnedThreadId
+    $schema | & python - $databasePath $mainThreadId $mainTitle $mutedThreadId $spawnedThreadId $arMutedThreadId
     if ($LASTEXITCODE -ne 0) {
         throw 'Failed to create the isolated Codex database.'
     }
@@ -178,6 +180,23 @@ public static class Program
     $mutedAuditJson = $mutedRecord | ConvertTo-Json -Compress
     if ($mutedAuditJson.Contains($mutedTitle) -or $mutedAuditJson.Contains('integration title')) {
         throw 'Muted audit record exposed the title text.'
+    }
+
+    Remove-Item -LiteralPath $markerPath -Force -ErrorAction SilentlyContinue
+    Invoke-WrapperCase -ThreadId $arMutedThreadId -TurnId 'captured-ar-muted-turn'
+    if (Test-Path -LiteralPath $markerPath) {
+        throw 'AR-prefixed thread reached ffplay.'
+    }
+    $arMutedRecord = Get-AuditRecord -TurnId 'captured-ar-muted-turn'
+    if ($arMutedRecord.decision -ne 'silence-muted' -or
+        $arMutedRecord.reason -ne 'title-ar-prefix' -or
+        $arMutedRecord.prefixPlayed -ne $false -or
+        $arMutedRecord.titlePlayed -ne $false) {
+        throw "Unexpected AR-muted audit record: $($arMutedRecord | ConvertTo-Json -Compress)"
+    }
+    $arMutedAuditJson = $arMutedRecord | ConvertTo-Json -Compress
+    if ($arMutedAuditJson.Contains('[AR]') -or $arMutedAuditJson.Contains('Private integration title')) {
+        throw 'AR-muted audit record exposed the title text.'
     }
 
     Remove-Item -LiteralPath $markerPath -Force -ErrorAction SilentlyContinue
